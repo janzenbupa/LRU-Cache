@@ -3,10 +3,11 @@ LRU Cache will evict the least recently used item
 
 Overview
 This repository contains implementations of an LRU (Least Recently Used) Cache in multiple languages, demonstrating how to evict a least recently used item once capacity is reached.
-The LRU cache supports:
-get(key) → O(1)
-put(key, value) → O(1)
+The LRU cache supports:\
+get(key) → O(1)\
+put(key, value) → O(1)\
 Implementations
+
 Python
 Version included:
 1. Built-in (OrderedDict)
@@ -24,15 +25,19 @@ Achieves O(1) operations\
 How It Works\
 Key Idea\
 HashMap -> fast lookup\
-Linked List -> track usage order
+Linked List -> track usage order\
 Flow
+
 Access item -> move to most recently used (tail)
+
 Insert item:
-If exists -> update + move
-If full -> remove least recently used (head)
-Complexity
-Operation	Time	Space
-get	O(1)	O(n)
+
+If exists -> update + move\
+If full -> remove least recently used (head)\
+Complexity\
+Operation	Time	Space\
+get	O(1)	O(n)\
 put	O(1)	O(n)
-Notes
+
+Notes\
 Python OrderedDict version is optimal for real-world use
