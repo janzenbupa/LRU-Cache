@@ -19,11 +19,11 @@ C#
 Uses:\
 Dictionary<TKey, LinkedListNode<T>>
 
-LinkedList<T>
-Achieves O(1) operations
-How It Works
-Key Idea
-HashMap -> fast lookup
+LinkedList<T>\
+Achieves O(1) operations\
+How It Works\
+Key Idea\
+HashMap -> fast lookup\
 Linked List -> track usage order
 Flow
 Access item -> move to most recently used (tail)
