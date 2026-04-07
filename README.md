@@ -16,8 +16,9 @@ Clean and production-ready
 Maintains insertion order internally
 
 C#
-Uses:
+Uses:\
 Dictionary<TKey, LinkedListNode<T>>
+
 LinkedList<T>
 Achieves O(1) operations
 How It Works
