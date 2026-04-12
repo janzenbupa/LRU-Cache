@@ -3,7 +3,7 @@ LRU Cache will evict the least recently used item
 
 Overview
 This repository contains implementations of an LRU (Least Recently Used) Cache in multiple languages, demonstrating how to evict a least recently used item once capacity is reached.
-The csharp and python folders show an implementation just using an int as key and value, the project is written in C# which uses generics to allow a user to store any data type they wish.
+The csharp and python folders show an implementation just using an int as key and value, the project is written in C# which uses generics to allow a user to store any data type they wish.\
 The LRU cache supports:\
 get(key) → O(1)\
 put(key, value) → O(1)\
