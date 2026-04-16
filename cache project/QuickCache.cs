@@ -49,6 +49,7 @@
         {
             public required TKey key;
             public required TValue value;
+            public long size;
             public DateTimeOffset? absExpiry;
             public TimeSpan? slidingExpiry;
             public DateTimeOffset lastAccessed;
@@ -58,23 +59,51 @@
         private LinkedList<itemEntry> cacheNodes;
         private Dictionary<TKey, LinkedListNode<itemEntry>> cache;
 
-        public IEnumerable<TKey> Keys { get; private set; }
+        public IEnumerable<TKey> Keys
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return cache.Keys.ToList();
+                }
+            }
+        }
+
+        public long Size
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return currentSize;
+                }
+            }
+        }
+
+        public long MaxSize { get { return _maxSize; } }
 
         private int capacity;
         private readonly object _lock;
         private readonly Timer _timer;
         private readonly TimeSpan _cleanupInterval = TimeSpan.FromSeconds(30);
 
-        public QuickCache(int capacity = 3000)
+        private long currentSize;
+        private readonly long _maxSize;
+
+        public QuickCache(long maxSize, int capacity = 7000)
         {
+            if (maxSize <= 0)
+                throw new ArgumentOutOfRangeException(nameof(maxSize));
             this.capacity = capacity;
             cache = new Dictionary<TKey, LinkedListNode<itemEntry>>(this.capacity);
             cacheNodes = new LinkedList<itemEntry>();
-            Keys = new HashSet<TKey>();
 
             _lock = new object();
             _timer = new Timer(_ => CleanUp(), null, _cleanupInterval, _cleanupInterval);
+            _maxSize = maxSize;
         }
+
         public IEnumerable<TValue> Get()
         {
             ThrowIfDisposed();
@@ -121,8 +150,16 @@
             ThrowIfDisposed();
             lock (_lock)
             {
+                if (options == null)
+                    options = new QuickCacheEntryOptions();
+                if (options.Size <= 0)
+                    throw new ArgumentOutOfRangeException(nameof(options.Size));
+                if (options.Size > _maxSize)
+                    throw new InsufficientMemoryException("Size of object cannot exceed max size of cache.");
+
                 if (cache.ContainsKey(key))
                 {
+                    currentSize -= cache[key].Value.size;
                     cacheNodes.Remove(cache[key]);
                 }
 
@@ -132,6 +169,7 @@
                 {
                     key = key,
                     value = value,
+                    size = options.Size,
                     lastAccessed = now,
                     absExpiry = options?.AbsoluteExpirationRelativeToNow != null ?
                         now.Add(options.AbsoluteExpirationRelativeToNow.Value) : null,
@@ -139,13 +177,41 @@
                 });
                 cache[key] = newNode;
                 cacheNodes.AddLast(newNode);
+                currentSize += newNode.Value.size;
 
-                if (cache.Count > capacity)
+                while (currentSize > _maxSize || cache.Count > capacity)
                 {
                     var node = cacheNodes.First;
                     cache.Remove(node!.Value.key);
+                    currentSize -= node.Value.size;
                     cacheNodes.RemoveFirst();
                 }
+            }
+        }
+
+        public bool Remove(TKey key)
+        {
+            lock (_lock)
+            {
+                if (!cache.TryGetValue(key, out var node))
+                {
+                    return false;
+                }
+
+                currentSize -= node.Value.size;
+                cacheNodes.Remove(node);
+                cache.Remove(key);
+                return true;
+            }
+        }
+
+        public void Clear()
+        {
+            lock (_lock)
+            {
+                cache.Clear();
+                cacheNodes.Clear();
+                currentSize = 0;
             }
         }
     }
