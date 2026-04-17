@@ -5,7 +5,8 @@
         private bool _disposed;
         public void Dispose()
         {
-            ThrowIfDisposed();
+            if (_disposed)
+                return;
             cache.Clear();
             cacheNodes.Clear();
             _disposed = true;
@@ -38,6 +39,7 @@
                     {
                         cache.Remove(item.key);
                         cacheNodes.Remove(node);
+                        currentSize -= item.size;
                     }
 
                     node = prev;
@@ -63,6 +65,7 @@
         {
             get
             {
+                ThrowIfDisposed();
                 lock (_lock)
                 {
                     return cache.Keys.ToList();
@@ -91,7 +94,7 @@
         private long currentSize;
         private readonly long _maxSize;
 
-        public QuickCache(long maxSize, int capacity = 7000)
+        public QuickCache(long maxSize, int capacity = 3000)
         {
             if (maxSize <= 0)
                 throw new ArgumentOutOfRangeException(nameof(maxSize));
@@ -104,48 +107,57 @@
             _maxSize = maxSize;
         }
 
-        public IEnumerable<TValue> Get()
+        public IEnumerable<TValue> Values
         {
-            ThrowIfDisposed();
-            foreach (var node in cache.Values)
-                yield return node.Value.value;
+            get
+            {
+                ThrowIfDisposed();
+                lock (_lock)
+                {
+                    foreach (var node in cache.Values)
+                        yield return node.Value.value;
+                }
+            }
         }
 
         public bool TryGet(TKey key, out TValue value)
         {
             ThrowIfDisposed();
-            if (cache.TryGetValue(key, out var node))
+            lock (_lock)
             {
-                var now = DateTimeOffset.UtcNow;
-
-                if (node.Value.absExpiry is DateTimeOffset expiry && expiry < DateTimeOffset.UtcNow)
+                if (cache.TryGetValue(key, out var node))
                 {
-                    cache.Remove(key);
+                    var now = DateTimeOffset.UtcNow;
+
+                    if (node.Value.absExpiry is DateTimeOffset expiry && expiry < DateTimeOffset.UtcNow)
+                    {
+                        cache.Remove(key);
+                        cacheNodes.Remove(node);
+                        value = default!;
+                        return false;
+                    }
+
+                    if (node.Value.slidingExpiry is TimeSpan s && node.Value.lastAccessed.Add(s) < now)
+                    {
+                        cache.Remove(key);
+                        cacheNodes.Remove(node);
+                        value = default!;
+                        return false;
+                    }
+
+                    node.Value.lastAccessed = now;
                     cacheNodes.Remove(node);
-                    value = default!;
-                    return false;
+                    cacheNodes.AddLast(node);
+
+                    value = node.Value.value;
+                    return true;
                 }
-
-                if (node.Value.slidingExpiry is TimeSpan s && node.Value.lastAccessed.Add(s) < now)
-                {
-                    cache.Remove(key);
-                    cacheNodes.Remove(node);
-                    value = default!;
-                    return false;
-                }
-
-                node.Value.lastAccessed = now;
-                cacheNodes.Remove(node);
-                cacheNodes.AddLast(node);
-
-                value = node.Value.value;
-                return true;
             }
             value = default!;
             return false;
         }
 
-        public void Create(TKey key, TValue value, QuickCacheEntryOptions? options = null)
+        public void Put(TKey key, TValue value, QuickCacheEntryOptions? options = null)
         {
             ThrowIfDisposed();
             lock (_lock)
