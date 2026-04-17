@@ -5,8 +5,8 @@ namespace Cache
     public interface IQuickCache<TKey, TValue> : IDisposable
     {
         IEnumerable<TKey> Keys { get; }
-        IEnumerable<TValue> Get();
+        IEnumerable<TValue> Values { get; }
         bool TryGet(TKey key, out TValue value);
-        void Create(TKey key, TValue value, QuickCacheEntryOptions? options);
+        void Put(TKey key, TValue value, QuickCacheEntryOptions? options);
     }
 }
